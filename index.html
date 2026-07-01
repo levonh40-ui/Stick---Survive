@@ -264,7 +264,9 @@ function drawFigure(cx,cy,size,facing,animT,onGround,vx,vy,angry,dimmed,ink,ctyp
   ctx.scale(1,sY);
   ctx.globalAlpha=dimmed?.28:1;
 
-  const hr=(activeCheats&&activeCheats.has('bighead')?H*.42:H*.2),hy=-H*.35;
+  const hr=(activeCheats&&activeCheats.has('bighead')?H*.42:H*.2);
+  const breathe=onGround&&!running?Math.sin(animT*0.06)*1.5:0;
+  const hy=-H*.35-breathe;
   const bTop=hy+hr*.95,bH=H*.28,bWt=H*.36,bWb=H*.29;
   const lW=H*.11,lH=H*.3,lY=bTop+bH,lO=lW*.65;
   const aW=H*.1,aH=H*.25;
@@ -3051,6 +3053,10 @@ const SFX={
   step(){sfx(200,140,'triangle',.035,.04);},
   rockWhoosh(){sfx(220,55,'sawtooth',.2,.2);sfx(440,110,'triangle',.1,.18,.05);},
   menuClick(){sfx(880,1100,'triangle',.14,.06);sfx(1100,1320,'sine',.08,.05,.04);},
+  kick(){if(!audioCtx||sfxMuted)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sawtooth';o.frequency.setValueAtTime(180,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(60,audioCtx.currentTime+0.12);g.gain.setValueAtTime(0.35,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.18);o.start();o.stop(audioCtx.currentTime+0.18);},
+  punch(){if(!audioCtx||sfxMuted)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='square';o.frequency.setValueAtTime(220,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(80,audioCtx.currentTime+0.08);g.gain.setValueAtTime(0.3,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.1);o.start();o.stop(audioCtx.currentTime+0.1);},
+  bossHit(){if(!audioCtx||sfxMuted)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sawtooth';o.frequency.setValueAtTime(80,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(30,audioCtx.currentTime+0.25);g.gain.setValueAtTime(0.5,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.3);o.start();o.stop(audioCtx.currentTime+0.3);},
+  trail(){if(!audioCtx||sfxMuted)return;const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sine';o.frequency.setValueAtTime(600,audioCtx.currentTime);o.frequency.exponentialRampToValueAtTime(300,audioCtx.currentTime+0.1);g.gain.setValueAtTime(0.08,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.12);o.start();o.stop(audioCtx.currentTime+0.12);},
 };
 
 /* ═══ LEVEL DATA ═══ */
@@ -3940,6 +3946,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&gameState==='shop')gameState='menu';
   if(e.key==='Escape'&&gameState==='locker')gameState='menu';
   if(e.key==='Escape'&&gameState==='cases'){gameState='menu';caseState='idle';}
+  if(e.key==='Escape'&&gameState==='mapselect')gameState='menu';
   if(e.key==='r'||e.key==='R'){
     if(gameState==='playing'||gameState==='levelwin'||gameState==='gameover'){
       if(pendingUnlocks.length>0){goToMenu();return;}
@@ -4191,6 +4198,18 @@ canvas.addEventListener('click',e=>{
     if(caseState==='idle'&&e.clientX>=spinBtn.x&&e.clientX<=spinBtn.x+spinBtn.w&&e.clientY>=spinBtn.y&&e.clientY<=spinBtn.y+spinBtn.h){
       startSpin();return;
     }
+  }
+  if(gameState==='mapselect'){
+    const W=canvas.width,H=canvas.height;
+    const cardW=160,cardH=110,gap=20;
+    const totalW=MAPS.length*(cardW+gap)-gap;
+    const startX=(W-totalW)/2;
+    MAPS.forEach((m,i)=>{
+      const cx=startX+i*(cardW+gap),cy=H/2-cardH/2;
+      if(e.clientX>=cx&&e.clientX<=cx+cardW&&e.clientY>=cy&&e.clientY<=cy+cardH){SFX.menuClick();selectedMap=m.key;return;}
+    });
+    // back button
+    if(e.clientX>=W/2-70&&e.clientX<=W/2+70&&e.clientY>=H*0.82&&e.clientY<=H*0.82+44){SFX.menuClick();gameState='menu';}
   }
 });
 
@@ -4654,7 +4673,7 @@ function stepBoss(){
     const isPunching=Math.abs(p.vx)>3;
     if(dx<80&&dy<100&&(isKicking||isPunching)&&boss.stunTimer<=0){
       const dmg=isKicking?20:10;
-      boss.hp-=dmg;boss.stunTimer=25;boss.shakeT=15;
+      boss.hp-=dmg;boss.stunTimer=25;boss.shakeT=15;SFX.bossHit&&SFX.bossHit();
       boss.vx+=(p.x<boss.x?1:-1)*4;
       if(boss.hp<=0){boss.dead=true;bossWinner='players';}
       if(boss.hp<boss.maxHp*0.66)boss.phase=1;
@@ -4670,7 +4689,7 @@ function ufcPunch(attacker,defender){
   if(cd>0||attacker.dead)return;
   if(attacker===p1){p1PunchTimer=PUNCH_ANIM;p1PunchCD=PUNCH_COOLDOWN;}
   else{p2PunchTimer=PUNCH_ANIM;p2PunchCD=PUNCH_COOLDOWN;}
-  SFX.stomp&&SFX.stomp();
+  SFX.stomp&&SFX.stomp();SFX.punch&&SFX.punch();
   const dx=(attacker.x+PW/2)-(defender.x+PW/2);
   if(Math.abs(dx)<PUNCH_RANGE&&!defender.dead){
     // deal damage
@@ -6737,7 +6756,7 @@ function doKick(p,type){
   const FRAMES={side:20,high:26,spin:30,roundhouse:24,sweep:18,flying:22};
   const CD=    {side:30,high:38,spin:42,roundhouse:36,sweep:28,flying:34};
   p.kickTimer=FRAMES[type];p.kickCD=CD[type];p.kickType=type;
-  SFX.stomp&&SFX.stomp();
+  SFX.stomp&&SFX.stomp();SFX.kick&&SFX.kick();
   let kx,ky,KW,KH,kbx,kby;
   if(type==='side')         {kx=p.x+(p.facing>0?PW:-70);         ky=p.y+PH*.45;KW=75;KH=36;kbx=p.facing*11;kby=-5;}
   else if(type==='high')    {kx=p.x+(p.facing>0?PW*.5:-PW*.5-32);ky=p.y;       KW=62;KH=PH*.65;kbx=p.facing*8;kby=-15;}
@@ -6758,6 +6777,42 @@ function doKick(p,type){
 }
 
 /* ═══ LOOP ═══ */
+function drawMapSelect(){
+  const W=canvas.width,H=canvas.height;
+  drawBG();
+  ctx.fillStyle='rgba(0,0,0,0.75)';ctx.fillRect(0,0,W,H);
+  ctx.save();
+  ctx.fillStyle='#FFD700';ctx.font='bold 38px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('SELECT MAP',W/2,H*0.18);
+  const cardW=160,cardH=110,gap=20;
+  const totalW=MAPS.length*(cardW+gap)-gap;
+  const startX=(W-totalW)/2;
+  MAPS.forEach((m,i)=>{
+    const cx=startX+i*(cardW+gap),cy=H/2-cardH/2;
+    const sel=selectedMap===m.key;
+    const hov=mouseX>=cx&&mouseX<=cx+cardW&&mouseY>=cy&&mouseY<=cy+cardH;
+    ctx.fillStyle=sel?'rgba(255,215,0,0.25)':hov?'rgba(255,255,255,0.14)':'rgba(255,255,255,0.07)';
+    roundRect(cx,cy,cardW,cardH,14);ctx.fill();
+    ctx.strokeStyle=sel?'#FFD700':'rgba(255,255,255,0.25)';ctx.lineWidth=sel?3:1;
+    roundRect(cx,cy,cardW,cardH,14);ctx.stroke();
+    ctx.font='40px monospace';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';
+    ctx.fillText(m.icon,cx+cardW/2,cy+cardH/2-16);
+    ctx.font='bold 14px monospace';ctx.fillStyle=sel?'#FFD700':'#fff';
+    ctx.fillText(m.name,cx+cardW/2,cy+cardH/2+32);
+    if(sel){ctx.font='11px monospace';ctx.fillStyle='#FFD700';ctx.fillText('✔ SELECTED',cx+cardW/2,cy+cardH-12);}
+  });
+  // back button
+  const bx=W/2-70,by=H*0.82;
+  const bhov=mouseX>=bx&&mouseX<=bx+140&&mouseY>=by&&mouseY<=by+44;
+  ctx.fillStyle=bhov?'rgba(255,255,255,0.2)':'rgba(255,255,255,0.1)';
+  roundRect(bx,by,140,44,10);ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=1;roundRect(bx,by,140,44,10);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='bold 16px monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('← BACK',W/2,by+22);
+  canvas.style.cursor=([...MAPS.map((_,i)=>({x:startX+i*(cardW+gap),y:H/2-cardH/2,w:cardW,h:cardH})),{x:bx,y:by,w:140,h:44}].some(b=>mouseX>=b.x&&mouseX<=b.x+b.w&&mouseY>=b.y&&mouseY<=b.y+b.h))?'pointer':'default';
+  ctx.restore();
+}
+
 setLang('hy');refreshLives();updateDjumpUI();
 function loop(){
   if(gameState==='title'){menuBtn.style.display='none';drawTitle();}
@@ -6765,6 +6820,7 @@ function loop(){
   else if(gameState==='shop'){menuBtn.style.display='none';drawShop();}
   else if(gameState==='locker'){menuBtn.style.display='none';drawLocker();}
   else if(gameState==='cases'){menuBtn.style.display='none';drawCases();}
+  else if(gameState==='mapselect'){menuBtn.style.display='none';drawMapSelect();}
   else{menuBtn.style.display='block';if(activeCheats.has('slow_mo')&&gameState==='game'&&(loop._sf=(loop._sf||0)+1)%2!==0){requestAnimationFrame(loop);return;}update();drawGame();}
   requestAnimationFrame(loop);
 }
