@@ -1,0 +1,1 @@
+Hello im Levon this is my game the game has many game modes for 1 and 2 players there are shop when you can buy creates and skins and i have kases that you can spin and get skins to defult and rainbow and you can equip that skins in locker have fun with friend and alone
