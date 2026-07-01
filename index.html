@@ -4074,6 +4074,8 @@ canvas.addEventListener('click',e=>{
     if(e.clientX>=sb.x&&e.clientX<=sb.x+sb.w&&e.clientY>=sb.y&&e.clientY<=sb.y+sb.h){SFX.menuClick();gameState='shop';shopScrollY=0;return;}
     const lb=getLockerBtn();
     if(e.clientX>=lb.x&&e.clientX<=lb.x+lb.w&&e.clientY>=lb.y&&e.clientY<=lb.y+lb.h){SFX.menuClick();gameState='locker';lockerScrollY=0;return;}
+    const mb2=getMapBtn();
+    if(e.clientX>=mb2.x&&e.clientX<=mb2.x+mb2.w&&e.clientY>=mb2.y&&e.clientY<=mb2.y+mb2.h){SFX.menuClick();gameState='mapselect';return;}
   }
   if(gameState==='shop'){
     const W=canvas.width,H=canvas.height;
